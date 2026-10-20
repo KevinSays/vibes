@@ -73,12 +73,14 @@ jobs:
             package-lock.json
             frontend/package-lock.json
 
+      # Strict `npm ci` (no `npm install` fallback): a fallback re-resolves
+      # dependencies, building a bundle that differs from the committed one.
       - name: Install Root Dependencies
-        run: npm ci || npm install --no-fund --no-audit
+        run: npm ci --no-fund --no-audit
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci || npm install --no-fund --no-audit
+        run: npm ci --no-fund --no-audit
 
       - name: Run Eslint
         run: npm run lint

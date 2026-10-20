@@ -30,10 +30,13 @@ func frontendFS(dir string) (fs.FS, error) {
 }
 
 // spaHandler serves real files from site directly and falls back to
-// index.html for every other path so client-side routing works.
+// index.html for every other path so client-side routing works. Asset
+// filenames carry no content hash (see frontend/vite.config.ts), so browsers
+// are told to revalidate rather than cache them.
 func spaHandler(site fs.FS) http.Handler {
 	files := http.FileServer(http.FS(site))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
 		name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if name != "" {
 			if fi, err := fs.Stat(site, name); err == nil && !fi.IsDir() {

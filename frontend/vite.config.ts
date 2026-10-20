@@ -19,6 +19,16 @@ export default defineConfig(({ mode }) => {
       // running VIBES needs no Node/npm. Rebuild after frontend changes.
       outDir: '../backend/cmd/web',
       emptyOutDir: true,
+      rollupOptions: {
+        // No content hashes in filenames: Rollup 2 mixes absolute paths into
+        // them, so builds from different checkouts (e.g. CI) never match the
+        // committed bundle. The backend sends Cache-Control: no-cache instead.
+        output: {
+          entryFileNames: 'assets/[name].js',
+          chunkFileNames: 'assets/[name].js',
+          assetFileNames: 'assets/[name][extname]',
+        },
+      },
     },
     server: {
       proxy: {
