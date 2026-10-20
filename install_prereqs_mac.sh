@@ -4,9 +4,12 @@
 # =======================================================
 # This script installs all required dependencies for the VIBES project on macOS
 # - Go 1.21+
-# - Node.js 16+
 # - libpcap development libraries
 # - And more...
+#
+# The frontend ships prebuilt inside the Go binary, so Node.js/npm are only
+# needed to change the frontend. To install them too, run:
+#   VIBES_DEV=1 ./install_prereqs_mac.sh
 # Requires: macOS (Darwin). Uses Homebrew for most packages.
 
 set -o pipefail
@@ -137,7 +140,10 @@ else
   print_step "Go installation complete"
 fi
 
-# Install Node.js and npm (use Homebrew; LTS is usually 18 or 20)
+VIBES_DEV="${VIBES_DEV:-0}"
+
+# Install Node.js and npm (frontend development only; Homebrew LTS)
+if [[ "$VIBES_DEV" == "1" ]]; then
 print_header "Installing Node.js and npm"
 if command -v node &> /dev/null; then
   NODE_VERSION=$(node -v)
@@ -152,6 +158,9 @@ else
   brew install node
   print_step "Node.js installation complete"
 fi
+else
+  print_header "Skipping Node.js and npm (frontend is prebuilt; set VIBES_DEV=1 to install)"
+fi
 
 # Install libpcap for packet capture
 print_header "Installing libpcap development libraries"
@@ -159,45 +168,6 @@ brew install libpcap
 
 # Run remaining setup from the vibes directory (frontend/backend)
 cd "$SCRIPT_DIR"
-
-# Install frontend dependencies
-print_header "Setting up frontend environment"
-print_step "Creating package.json if it doesn't exist"
-if [ ! -f frontend/package.json ]; then
-  mkdir -p frontend
-  cat > frontend/package.json << EOF
-{
-  "name": "${FE_NAME}",
-  "private": ${FE_PRIVATE},
-  "version": "${FE_VERSION}",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@pixi/react": "latest",
-    "pixi.js": "latest",
-    "react": "^${REACT_VER}",
-    "react-dom": "^${REACT_VER}",
-    "zustand": "^${ZUSTAND_VER}"
-  },
-  "devDependencies": {
-    "@types/react": "^${TYPES_REACT_VER}",
-    "@types/react-dom": "^${TYPES_REACTDOM_VER}",
-    "@vitejs/plugin-react": "^${VITEJS_REACT_VER}",
-    "autoprefixer": "^${AUTOPREFIXER_VER}",
-    "postcss": "^${POSTCSS_VER}",
-    "tailwindcss": "^${TAILWINDCSS_VER}",
-    "typescript": "^${TYPESCRIPT_VER}",
-    "vite": "^${VITE_VER}",
-    "vite-tsconfig-paths": "^${VITETS_VER}"
-  }
-}
-EOF
-  print_step "Created package.json"
-fi
 
 # Install backend dependencies
 print_header "Setting up backend environment"
@@ -226,10 +196,12 @@ go get github.com/gorilla/websocket@v${WEBSOCKET_VER} || \
 go get github.com/google/gopacket@v${GOPACKET_VER}
 cd ..
 
-print_step "Installing frontend dependencies"
-cd frontend
-npm install
-cd ..
+if [[ "$VIBES_DEV" == "1" ]]; then
+  print_step "Installing frontend dependencies"
+  cd frontend
+  npm install
+  cd ..
+fi
 
 # Setup the project for first-time use
 print_header "Setting up project for first-time use"
@@ -241,7 +213,9 @@ mkdir -p logs
 # Completion
 print_header "VIBES Network Visualizer prerequisites installation completed!"
 print_step "You may need to restart your terminal or run: source $PROFILE"
-print_step "To start the frontend: cd frontend && npm run dev"
-print_step "To start the backend: cd backend/cmd && go run main.go"
+print_step "To start VIBES: cd backend/cmd && go run . then open http://localhost:8080"
+if [[ "$VIBES_DEV" == "1" ]]; then
+  print_step "Frontend dev server (hot reload): cd frontend && npm run dev"
+fi
 print_warning "Note: you may need to run the backend with sudo for packet capture: sudo -E go run backend/cmd/main.go"
 print_header "Ready to build the sickest network visualizer ever! 🚀"

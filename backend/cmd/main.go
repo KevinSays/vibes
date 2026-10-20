@@ -45,6 +45,7 @@ var (
 	dumpcapBufferMB   = flag.Int("dumpcap-buffer-mb", 1024, "dumpcap kernel buffer size in MB (-B)")
 	zeekTCPListen = flag.String("zeek-tcp", "", "default listen address for Zeek conn.log JSON over TCP (e.g. :4777); used when WebSocket connects with zeek_tcp=1")
 	corsOrigin    = flag.String("cors-origin", "*", "allowed origin(s) for CORS (default: all, comma-separated list for multiple)")
+	webDir        = flag.String("web-dir", "", "serve the frontend from this directory instead of the bundle embedded in the binary")
 	upgrader    = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			if *corsOrigin == "*" {
@@ -841,19 +842,15 @@ func main() {
 		})
 	})
 
-	// Serve the built frontend from ./public with SPA fallback: real asset
-	// files (JS/CSS/favicon) are served directly; any other path returns
-	// index.html so client-side routing works.
-	publicFS := http.FileServer(http.Dir("public"))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			if fi, err := os.Stat("public" + r.URL.Path); err == nil && !fi.IsDir() {
-				publicFS.ServeHTTP(w, r)
-				return
-			}
-		}
-		http.ServeFile(w, r, "public/index.html")
-	})
+	// Serve the frontend with SPA fallback: real asset files (JS/CSS/favicon)
+	// are served directly; any other path returns index.html so client-side
+	// routing works. By default the prebuilt bundle embedded in the binary is
+	// used, so running the backend needs no Node/npm; -web-dir overrides it.
+	siteFS, err := frontendFS(*webDir)
+	if err != nil {
+		log.Fatalf("frontend: %v", err)
+	}
+	http.Handle("/", spaHandler(siteFS))
 
 	srv := &http.Server{
 		Addr:              *addr,

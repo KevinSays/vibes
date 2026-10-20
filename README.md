@@ -121,10 +121,12 @@ If you're using WSL or Linux:
 ## Manual Setup
 
 ### Prerequisites
-- Node.js v16+
 - Go 1.21+
 - libpcap development libraries (for packet capture on Linux/macOS)
 - Npcap (for packet capture on Windows)
+- Node.js v18+ — **only** if you want to change the frontend (see below)
+
+The production frontend is prebuilt in `backend/cmd/web/` and embedded into the Go binary, so running VIBES needs no Node.js or npm.
 
 ### Backend Setup
 ```bash
@@ -134,18 +136,21 @@ go mod tidy
 go mod download
 ```
 
-### Frontend Setup
+## Running
+
 ```bash
-cd frontend
-npm install
+cd backend/cmd
+go run .
 ```
+
+Then open http://localhost:8080 — the backend serves the UI itself. To produce a standalone binary: `cd backend && go build -o vibes ./cmd`.
 
 ## Development
 
 ### Running the Backend
 ```bash
 cd backend/cmd
-go run main.go
+go run .
 ```
 
 For packet capture functionality on Linux/macOS (requires sudo):
@@ -169,10 +174,17 @@ cd backend/cmd
 go run . -addr :8080 -zeek-tcp :4777
 ```
 
-### Running the Frontend
+### Working on the Frontend (requires Node.js)
 ```bash
 cd frontend
-npm run dev
+npm install
+npm run dev     # hot-reload dev server, proxies /ws and /api to the backend
+```
+
+After changing the frontend, rebuild the embedded bundle and commit it — CI fails if `backend/cmd/web/` is out of date:
+```bash
+cd frontend
+npm run build   # writes to backend/cmd/web/
 ```
 
 For Zeek capture

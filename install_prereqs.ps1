@@ -1,10 +1,15 @@
 # VIBES Network Visualizer Prerequisites Installer for Windows
 # ==================================================
 # This script installs all required dependencies for the VIBES project on Windows
-# - Node.js 16+
 # - Go 1.21+
 # - Npcap (for packet capture)
 # - Development tools
+#
+# The frontend ships prebuilt inside the Go binary, so Node.js/npm are only
+# needed to change the frontend. To install them too, run:
+#   $env:VIBES_DEV=1; .\install_prereqs.ps1
+
+$VibesDev = $env:VIBES_DEV -eq "1"
 
 $FE_NAME="vibes-network-visualizer"
 $FE_PRIVATE=$true
@@ -96,9 +101,11 @@ if (Get-Command go -ErrorAction SilentlyContinue) {
     Write-Step "Go installation complete"
 }
 
-# Install Node.js
-Write-Header "Installing Node.js"
-if (Get-Command node -ErrorAction SilentlyContinue) {
+# Install Node.js (frontend development only)
+if (-not $VibesDev) {
+    Write-Header "Skipping Node.js (frontend is prebuilt; set VIBES_DEV=1 to install)"
+} elseif (Get-Command node -ErrorAction SilentlyContinue) {
+    Write-Header "Installing Node.js"
     $nodeVersion = (node -v) -replace 'v', ''
     Write-Step "Node.js $nodeVersion is already installed"
     
@@ -110,6 +117,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         refreshenv
     }
 } else {
+    Write-Header "Installing Node.js"
     Write-Step "Installing Node.js $NODE_VER.$NODE_MIN_VER..."
     choco install nodejs -y --version=$NODE_VER.$NODE_MIN_VER
     refreshenv
@@ -165,53 +173,6 @@ require (
 "@
 }
 
-# Setup frontend environment
-Write-Step "Creating frontend directories"
-if (-not (Test-Path "frontend")) {
-    New-Item -ItemType Directory -Path "frontend" | Out-Null
-    New-Item -ItemType Directory -Path "frontend\src" | Out-Null
-    New-Item -ItemType Directory -Path "frontend\public" | Out-Null
-    New-Item -ItemType Directory -Path "frontend\src\components" | Out-Null
-    New-Item -ItemType Directory -Path "frontend\src\hooks" | Out-Null
-    New-Item -ItemType Directory -Path "frontend\src\utils" | Out-Null
-}
-
-# Create package.json if it doesn't exist
-if (-not (Test-Path "frontend\package.json")) {
-    Write-Step "Creating package.json"
-    Set-Content -Path "frontend\package.json" -Value @"
-{
-  "name": "$FE_NAME",
-  "private": $($FE_PRIVATE.ToString().ToLower()),
-  "version": "$FE_VERSION",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@pixi/react": "latest",
-    "pixi.js": "latest",
-    "react": "^$REACT_VER",
-    "react-dom": "^$REACT_VER",
-    "zustand": "^$ZUSTAND_VER"
-  },
-  "devDependencies": {
-    "@types/react": "^$TYPES_REACT_VER",
-    "@types/react-dom": "^$TYPES_REACTDOM_VER",
-    "@vitejs/plugin-react": "^$VITEJS_REACT_VER",
-    "autoprefixer": "^$AUTOPREFIXER_VER",
-    "postcss": "^$POSTCSS_VER",
-    "tailwindcss": "^$TAILWINDCSS_VER",
-    "typescript": "^$TYPESCRIPT_VER",
-    "vite": "^$VITE_VER",
-    "vite-tsconfig-paths": "^$VITETS_VER"
-  }
-}
-"@
-}
-
 # Install Go dependencies
 Write-Header "Installing Go dependencies"
 Push-Location "backend"
@@ -226,16 +187,18 @@ try {
     Pop-Location
 }
 
-# Install frontend dependencies
-Write-Header "Installing frontend dependencies"
-Push-Location "frontend"
-try {
-    Write-Step "Installing Node.js dependencies..."
-    npm install
-} catch {
-    Write-Error "Failed to install Node.js dependencies: $_"
-} finally {
-    Pop-Location
+# Install frontend dependencies (frontend development only)
+if ($VibesDev) {
+    Write-Header "Installing frontend dependencies"
+    Push-Location "frontend"
+    try {
+        Write-Step "Installing Node.js dependencies..."
+        npm install
+    } catch {
+        Write-Error "Failed to install Node.js dependencies: $_"
+    } finally {
+        Pop-Location
+    }
 }
 
 # Create data and logs directories
@@ -251,8 +214,10 @@ if (-not (Test-Path "logs")) {
 
 # Final message
 Write-Header "VIBES Network Visualizer prerequisites installation completed!"
-Write-Step "To start the frontend: cd frontend && npm run dev"
-Write-Step "To start the backend: cd backend/cmd && go run main.go"
+Write-Step "To start VIBES: cd backend/cmd && go run . then open http://localhost:8080"
+if ($VibesDev) {
+    Write-Step "Frontend dev server (hot reload): cd frontend && npm run dev"
+}
 
 Write-Warning "Note: You may need to run the command prompt as administrator for packet capture capabilities"
 Write-Header "Ready to build the sickest network visualizer ever! 🚀"

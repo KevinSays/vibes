@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tsconfigPaths()],
+    build: {
+      // Embedded into the Go binary (backend/cmd/web.go) and committed, so
+      // running VIBES needs no Node/npm. Rebuild after frontend changes.
+      outDir: '../backend/cmd/web',
+      emptyOutDir: true,
+    },
     server: {
       proxy: {
         '/ws': {

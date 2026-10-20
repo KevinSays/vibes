@@ -91,6 +91,14 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
+      - name: Verify Embedded Frontend Bundle Is Up To Date
+        run: |
+          git add -N backend/cmd/web
+          if ! git diff --exit-code --stat -- backend/cmd/web; then
+            echo "::error::backend/cmd/web is stale. Run 'cd frontend && npm run build' and commit the result."
+            exit 1
+          fi
+
       - name: Generate Frontend Build Summary
         run: |
           echo "### 🎨 Frontend Build Verification" >> $GITHUB_STEP_SUMMARY
